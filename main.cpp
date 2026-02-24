@@ -6,6 +6,44 @@
 #include <map>
 #include <algorithm>
 
+#include <TCanvas.h>
+#include <TH2I.h>
+#include <TStyle.h>
+
+void draw_bigram_root(torch::Tensor N) {
+  const int ALPHABET_SIZE = 27;
+  gStyle->SetOptStat(0);
+  gStyle->SetPaintTextFormat("g"); 
+
+  N = N.to(torch::kCPU).contiguous();
+
+  auto h = new TH2I("h", "Bigram counts;first letter;second letter",
+                    ALPHABET_SIZE, 0, ALPHABET_SIZE,
+                    ALPHABET_SIZE, 0, ALPHABET_SIZE);
+
+  for (int i = 0; i < ALPHABET_SIZE; ++i) {
+    TString lab; lab += char('a' + i);
+    if (i == ALPHABET_SIZE - 1) { lab = '.'; }
+    h->GetXaxis()->SetBinLabel(i + 1, lab);
+    h->GetYaxis()->SetBinLabel(i + 1, lab);
+  }
+
+  auto acc = N.accessor<int64_t, 2>();
+  for (int i = 0; i < ALPHABET_SIZE; ++i) {
+    for (int j = 0; j < ALPHABET_SIZE; ++j) {
+      h->SetBinContent(i + 1, j + 1, acc[i][j]);
+    }
+  }
+
+  auto c = new TCanvas("c", "Bigram heatmap", 900, 800);
+  c->SetRightMargin(0.15);
+
+  h->Draw("COLZ TEXT");
+
+  c->Update();
+  c->SaveAs("bigrams.png");
+}
+
 int main() {
 
   std::ifstream file("../names.txt");
@@ -22,8 +60,7 @@ int main() {
   }
   file.close();
 
-  std::map<std::tuple<char, char>, int> b;
-  torch::Tensor N = torch::zeros({ 27, 27 });
+  torch::Tensor N = torch::zeros({ 27, 27 }, torch::kInt64);
   for (std::string word : lines) {
     word = "." + word + ".";
 
@@ -32,34 +69,16 @@ int main() {
       char ch2 = word[i+1];
 
       auto ctoi = [](char ch) {
-        if (ch == '.') return 0;
-        return ch - 'a' + 1;
+        if (ch == '.') return 26;
+        return ch - 'a';
       };
 
-      // std::cout << "ch1 " << ch1 << " int: " << ctoi(ch1) << std::endl;
-
       N.index_put_({ ctoi(ch1), ctoi(ch2) }, N.index({ ctoi(ch1), ctoi(ch2) }).add_(1));
-
-      std::cout << "ch1: " << ch1 << ", ch2: " << ch2 << std::endl;
     }
   }
 
-  // for (auto it : b) {
-  //   std::cout << "(" << get<0>(it.first) << ", " << get<1>(it.first) << ")" << " : " << it.second << std::endl;
-  // }
+  std::cout << N.index({ 0, 0 }) << std::endl;
 
-  // using bigramTuple = std::pair<std::tuple<char, char>, int>;
-  // std::vector<bigramTuple> arr(b.begin(), b.end());
-
-  // std::sort(arr.begin(), arr.end(), [](bigramTuple a, bigramTuple b) {
-  //   return a.second > b.second;
-  // });
-
-  // for (auto p : arr) {
-  //   auto [a, b] = p; 
-  //   std::cout << "(" << get<0>(a) << ", " << get<1>(a) << ")" << " : " << b << std::endl;
-  // }
-
-  std::cout << N << std::endl;
+  draw_bigram_root(N);
 
 }
