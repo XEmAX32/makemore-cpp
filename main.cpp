@@ -1,4 +1,6 @@
 #include <torch/torch.h>
+#include <ATen/CPUGeneratorImpl.h>
+
 #include <iostream>
 #include <fstream>
 #include <span>
@@ -77,8 +79,19 @@ int main() {
     }
   }
 
-  std::cout << N.index({ 0, 0 }) << std::endl;
+  auto gen = at::make_generator<at::CPUGeneratorImpl>(2147483647);
 
-  draw_bigram_root(N);
+  for (int i = 0; i < 50; i++) {
+    int ix = 0;
+    std::string name = "";
+    for( ;; ) {
+      auto probability = N.index({torch::indexing::Slice(), ix}).to(torch::kFloat);
+      const float sum = N.index({torch::indexing::Slice(), ix}).to(torch::kFloat).sum().item<float>();
+      ix = torch::multinomial(probability, 1, true, gen).item<int64_t>();
+      if (ix == 26) { break; }
+      name += static_cast<char>('a' + ix);
+    }
 
+    std::cout << name << std::endl;
+  }
 }
