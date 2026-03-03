@@ -20,6 +20,10 @@ set_property(TARGET main PROPERTY CXX_STANDARD 20)
 set_property(TARGET main PROPERTY CXX_STANDARD_REQUIRED ON)
 set_property(TARGET main PROPERTY CXX_EXTENSIONS OFF)
 
+target_compile_options(main PRIVATE
+  -g -O0 -fno-omit-frame-pointer
+)
+
 if (MSVC)
   file(GLOB TORCH_DLLS "${TORCH_INSTALL_PREFIX}/lib/*.dll")
   add_custom_command(TARGET main
